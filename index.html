@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#121418">
+<title>Smart Home</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🏠%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<style>
+/* TEMA DARK GREY DOFT / MATTE */
+:root {
+  --bg: #121418;          /* Dark Grey Doft Background */
+  --card: #1A1D24;        /* Matte Dark Grey Card */
+  --ink: #EEEEF0;         /* Soft White Text */
+  --muted: #8E95A2;       /* Muted Grey Text */
+  --line: #282C36;        /* Subtle Border Line */
+  --soft: #222630;        /* Soft Dark Grey Fill */
+  --accent: #FFFFFF;      /* Accent White for Icons & Active Elements */
+  --tint: #2D3340;        /* Dark Slate Tint */
+  --on-accent: #121418;   /* Dark Text on Accent */
+  --warn: #E2B340;        /* Soft Gold Warning */
+  --bad: #EF5350;         /* Soft Red Bad/Off Status */
+  --sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{min-height:100dvh;display:flex;justify-content:center;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  padding:max(24px,env(safe-area-inset-top)) 18px max(20px,env(safe-area-inset-bottom))}
+.wrap{width:100%;max-width:440px;display:flex;flex-direction:column;gap:24px}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;touch-action:manipulation;text-align:inherit}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+button:disabled{cursor:not-allowed}
+svg.ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+/* header */
+.bar{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+h1{margin:0;font-size:1.75rem;font-weight:700;letter-spacing:-.03em;line-height:1.15}
+.hello{margin:4px 0 0;font-size:.9rem;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:7px;margin-top:4px;padding:6px 12px;border-radius:99px;background:var(--card);border:1px solid var(--line);font-size:.75rem;font-weight:500;white-space:nowrap}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.pill[data-s=online] i{background:#22C55E}
+.pill[data-s=offline] i{background:var(--bad)}
+.pill[data-s=demo] i,.pill[data-s=connecting] i,.pill[data-s=saving] i{background:var(--warn)}
+.pill[data-s=connecting] i,.pill[data-s=saving] i{animation:pulse 1s infinite}
+
+/* device tiles */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tile{display:flex;flex-direction:column;justify-content:space-between;height:140px;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:22px;transition:transform .15s,border-color .2s}
+.tile:active{transform:scale(.97)}
+.tile.on{border-color:var(--accent)}
+.tile .row{display:flex;justify-content:space-between;align-items:flex-start}
+
+/* BADGE & IKON LOGO AC PUTIH */
+.badge{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:var(--soft);color:#FFFFFF}
+.tile.live .badge{background:var(--tint);color:#FFFFFF}
+
+.status{padding:3px 10px;border-radius:99px;background:var(--soft);color:var(--muted);font-size:.7rem;font-weight:600}
+.tile.on .status{background:var(--tint);color:var(--ink)}
+.name{display:block;font-size:.95rem;font-weight:600}
+.sub{display:block;margin-top:2px;font-size:.8rem;color:var(--muted)}
+.tile.soon{opacity:.6}
+.tile.add{align-items:center;justify-content:center;gap:8px;background:transparent;border-style:dashed;color:var(--muted);font-size:.85rem;font-weight:500}
+
+footer{margin-top:auto;text-align:center;font-size:.74rem;color:var(--muted)}
+
+/* AC sheet */
+.sheet-wrap{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.6);
+  visibility:hidden;opacity:0;transition:opacity .25s,visibility 0s .25s}
+.sheet-wrap.open{visibility:visible;opacity:1;transition:opacity .25s}
+.sheet{width:100%;max-width:440px;max-height:94dvh;overflow:auto;background:var(--card);border-radius:28px 28px 0 0;
+  padding:10px 20px max(24px,env(safe-area-inset-bottom));transform:translateY(100%);transition:transform .3s cubic-bezier(.2,.8,.2,1);border-top:1px solid var(--line)}
+.open .sheet{transform:none}
+.grab{width:36px;height:4px;margin:0 auto 14px;border-radius:2px;background:var(--line)}
+@media(min-width:520px){.sheet-wrap{align-items:center}.sheet{border-radius:28px;padding-top:22px;border:1px solid var(--line)}.grab{display:none}}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.id{display:flex;align-items:center;gap:12px}
+.id h2{margin:0;font-size:1.05rem;font-weight:600}
+.id p{margin:2px 0 0;font-size:.8rem;color:var(--muted)}
+.close{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--soft);color:var(--muted)}
+
+.panel{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;margin-bottom:12px;padding:18px 12px;background:var(--soft);border-radius:22px;text-align:center}
+.round{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:var(--card);border:1px solid var(--line);color:#FFFFFF;transition:transform .15s,opacity .2s}
+.round:active:not(:disabled){transform:scale(.9)}
+.round:disabled{opacity:.3}
+.cap{font-size:.78rem;color:var(--muted)}
+.temp{margin:4px 0 6px;font-size:4rem;font-weight:600;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+.temp span{display:inline-block}
+.temp small{margin-left:2px;font-size:1.3rem;font-weight:500;color:#FFFFFF;letter-spacing:0}
+
+.power{width:100%;height:54px;margin-bottom:22px;border-radius:16px;display:flex;align-items:center;justify-content:center;gap:8px;
+  background:#FFFFFF;color:#121418;font-weight:700;transition:background .25s,color .25s,transform .15s}
+.power:active{transform:scale(.98)}
+.power.is-on{background:var(--soft);color:var(--bad);border:1px solid var(--line)}
+
+.group+.group{margin-top:18px}
+.group h3{margin:0 0 8px;font-size:.82rem;font-weight:600;color:var(--muted)}
+.opts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.opts button{height:46px;border-radius:14px;background:var(--soft);text-align:center;font-size:.88rem;font-weight:500;transition:background .2s,color .2s,transform .15s}
+.opts button:active{transform:scale(.95)}
+.opts button.active{background:#FFFFFF;color:#121418;font-weight:700}
+@media(hover:hover){.opts button:not(.active):hover{background:var(--tint)}.round:hover:not(:disabled){border-color:#FFFFFF}}
+
+.toast{position:fixed;left:50%;bottom:max(24px,env(safe-area-inset-bottom));z-index:60;transform:translate(-50%,16px);max-width:min(90vw,400px);
+  padding:11px 18px;border-radius:16px;background:var(--ink);color:var(--bg);font-size:.82rem;text-align:center;
+  opacity:0;pointer-events:none;transition:opacity .3s,transform .3s}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@keyframes pulse{50%{opacity:.25}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-snow" viewBox="0 0 24 24"><path d="M2 12h20M12 2v20"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></symbol>
+  <symbol id="i-tv" viewBox="0 0 24 24"><rect width="20" height="15" x="2" y="7" rx="2"/><path d="m17 2-5 5-5-5"/></symbol>
+</svg>
+
+<div class="wrap">
+
+  <header class="bar">
+    <div>
+      <h1>Smart Home</h1>
+      <p class="hello" id="hello">Welcome</p>
+    </div>
+    <span class="pill" id="conn" data-s="connecting"><i></i><span id="conn-text">Connecting…</span></span>
+  </header>
+
+  <main class="grid">
+    <!-- AC Tile -->
+    <button class="tile live" id="tile-ac" aria-haspopup="dialog">
+      <span class="row">
+        <span class="badge"><svg class="ic"><use href="#i-snow"/></svg></span>
+        <span class="status" id="tile-status">Off</span>
+      </span>
+      <span>
+        <span class="name">Panasonic AC</span>
+        <span class="sub" id="tile-sub">19°C, Fan 3</span>
+      </span>
+    </button>
+
+    <!-- Inactive Devices -->
+    <button class="tile soon" data-soon="Lights">
+      <span class="row"><span class="badge"><svg class="ic"><use href="#i-bulb"/></svg></span></span>
+      <span><span class="name">Lights</span><span class="sub">Coming soon</span></span>
+    </button>
+
+    <button class="tile soon" data-soon="TV">
+      <span class="row"><span class="badge"><svg class="ic"><use href="#i-tv"/></svg></span></span>
+      <span><span class="name">TV</span><span class="sub">Coming soon</span></span>
+    </button>
+
+    <button class="tile add" data-soon="New device">
+      <svg class="ic"><use href="#i-plus"/></svg>
+      <span>Add device</span>
+    </button>
+  </main>
+
+  <footer>LUMA Smart Home Ecosystem &copy; 2026</footer>
+</div>
+
+<!-- AC Control Sheet -->
+<div class="sheet-wrap" id="sheet" aria-hidden="true">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <div class="grab"></div>
+
+    <div class="sheet-head">
+      <div class="id">
+        <span class="badge"><svg class="ic"><use href="#i-snow"/></svg></span>
+        <div><h2 id="sheet-title">Panasonic AC</h2><p>Master bedroom</p></div>
+      </div>
+      <button class="close" id="close" aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+
+    <div class="panel">
+      <button class="round" id="down" aria-label="Decrease temperature by 1 degree"><svg class="ic"><use href="#i-minus"/></svg></button>
+      <div>
+        <span class="cap">Target temperature</span>
+        <div class="temp"><span id="temp">19</span><small>°C</small></div>
+        <span class="cap" id="meta" aria-live="polite">AC is currently off</span>
+      </div>
+      <button class="round" id="up" aria-label="Increase temperature by 1 degree"><svg class="ic"><use href="#i-plus"/></svg></button>
+    </div>
+
+    <button class="power" id="power"><svg class="ic"><use href="#i-power"/></svg><span id="power-text">Turn On AC</span></button>
+
+    <div class="group"><h3>Temperature Presets</h3><div class="opts" id="presets"></div></div>
+    <div class="group"><h3>Fan Speed</h3><div class="opts" id="fans"></div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+	(() => {
+	'use strict';
+
+	/* ===== 1. KONFIGURASI ===== */
+	const SUPABASE_URL = "https://oviboanwsnrkipuihnq.supabase.co";
+
+	// PASTE PUBLISHABLE / ANON KEY SUPABASE KAMU DI DALAM TANDA PETIK DI BAWAH INI:
+	const SUPABASE_KEY = "sb_publishable_1bPpwEuUj425NsD8ibzs-w_vsTDAqYw";
+
+	const TABLE = "smart_home", ROW_ID = 1;
+	const OWNER = "LUMA";
+	const TEMP_MIN = 16, TEMP_MAX = 30;
+	const PRESETS = [19, 21, 24, 26];
+	const FANS = [[0, "Silent"], [1, "1"], [2, "2"], [3, "3"]];
+
+	/* ===== 2. STATE & HELPER ===== */
+  const $ = id => document.getElementById(id);
+  const state = { power: "OFF", temp: 19, fan: 3 };
+  let db = null, saveTimer = null, quietUntil = 0, toastTimer = null, shownTemp = null;
+
+  const toNum = (v, min, max, fallback) => {
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+  };
+
+  const CONN = { demo: "Demo Mode", connecting: "Connecting…", online: "Connected", saving: "Saving…", offline: "Disconnected" };
+  function setConn(key) { $("conn").dataset.s = key; $("conn-text").textContent = CONN[key]; }
+
+  function toast(msg) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 4200);
+  }
+
+  /* ===== 3. RENDERING ===== */
+  function render() {
+    const on = state.power === "ON";
+    const fanText = state.fan === 0 ? "silent fan" : `fan ${state.fan}`;
+
+    $("tile-ac").classList.toggle("on", on);
+    $("tile-status").textContent = on ? "On" : "Off";
+    $("tile-sub").textContent = `${state.temp}°C, ${fanText}`;
+
+    $("temp").textContent = state.temp;
+    $("meta").textContent = on ? `Cooling, ${fanText}` : "AC is currently off";
+    $("power").classList.toggle("is-on", on);
+    $("power-text").textContent = on ? "Turn Off AC" : "Turn On AC";
+    $("down").disabled = state.temp <= TEMP_MIN;
+    $("up").disabled = state.temp >= TEMP_MAX;
+    document.querySelectorAll("#presets button").forEach(b => b.classList.toggle("active", +b.dataset.temp === state.temp));
+    document.querySelectorAll("#fans button").forEach(b => b.classList.toggle("active", +b.dataset.fan === state.fan));
+
+    if (shownTemp !== null && shownTemp !== state.temp) {
+      $("temp").animate([{ transform: "translateY(6px)", opacity: .3 }, { transform: "none", opacity: 1 }], { duration: 180, easing: "ease-out" });
+    }
+    shownTemp = state.temp;
+  }
+
+  /* ===== 4. SHEET LOGIC ===== */
+  const sheet = $("sheet");
+  function openSheet() {
+    sheet.classList.add("open");
+    sheet.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+    $("close").focus();
+  }
+  function closeSheet() {
+    sheet.classList.remove("open");
+    sheet.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+    $("tile-ac").focus();
+  }
+  $("tile-ac").onclick = openSheet;
+  $("close").onclick = closeSheet;
+  sheet.onclick = e => { if (e.target === sheet) closeSheet(); };
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && sheet.classList.contains("open")) closeSheet(); });
+  document.querySelectorAll("[data-soon]").forEach(b => b.onclick = () => toast(`${b.dataset.soon} coming soon.`));
+
+  /* ===== 5. CONTROL ACTIONS ===== */
+  function change(patch) {
+    Object.assign(state, patch);
+    state.temp = toNum(state.temp, TEMP_MIN, TEMP_MAX, 19);
+    state.fan = toNum(state.fan, 0, 3, 3);
+    render();
+    quietUntil = Date.now() + 1500;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(save, 300);
+  }
+
+  async function save() {
+    if (!db) return;
+    setConn("saving");
+    const { data, error } = await db.from(TABLE)
+      .update({ Power: state.power, Temp: state.temp, Fan: state.fan })
+      .eq("id", ROW_ID)
+      .select();
+    quietUntil = Date.now() + 800;
+    if (error) { setConn("offline"); return toast("Failed to send: " + error.message); }
+    setConn("online");
+    if (!data || !data.length) toast("Changes not saved. Check RLS policy and ensure a row exists with id = " + ROW_ID);
+  }
+
+  $("power").onclick = () => change({ power: state.power === "ON" ? "OFF" : "ON" });
+  $("up").onclick = () => change({ temp: state.temp + 1 });
+  $("down").onclick = () => change({ temp: state.temp - 1 });
+  $("presets").onclick = e => { const b = e.target.closest("button"); if (b) change({ temp: +b.dataset.temp }); };
+  $("fans").onclick = e => { const b = e.target.closest("button"); if (b) change({ fan: +b.dataset.fan }); };
+
+  /* ===== 6. SUPABASE SYNC ===== */
+  function applyRow(r) {
+    if (!r) return;
+    state.power = (r.Power === true || String(r.Power).toUpperCase() === "ON") ? "ON" : "OFF";
+    state.temp = toNum(r.Temp, TEMP_MIN, TEMP_MAX, state.temp);
+    state.fan = toNum(r.Fan, 0, 3, state.fan);
+    render();
+  }
+
+  async function connect() {
+    const configured = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(SUPABASE_URL) && SUPABASE_KEY && !/PASTE_PUBLISHABLE_KEY/.test(SUPABASE_KEY);
+    if (!configured || !window.supabase) {
+      setConn("demo");
+      toast(window.supabase ? "Demo mode: fill in SUPABASE_KEY to connect." : "Failed to load Supabase library.");
+      return;
+    }
+    try { db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); }
+    catch (e) { console.error(e); setConn("offline"); return toast("Invalid Supabase configuration."); }
+
+    const { data, error } = await db.from(TABLE).select("*").eq("id", ROW_ID).single();
+    if (error) toast("Failed to read AC status: " + error.message); else applyRow(data);
+
+    db.channel("smart-home-live")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: TABLE, filter: `id=eq.${ROW_ID}` },
+        p => { if (Date.now() > quietUntil) applyRow(p.new); })
+      .subscribe(s => {
+        if (s === "SUBSCRIBED") setConn("online");
+        else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(s)) setConn("offline");
+      });
+  }
+
+  /* ===== 7. INIT ===== */
+  const h = new Date().getHours();
+  const sapaan = h < 4 ? "night" : h < 11 ? "morning" : h < 15 ? "afternoon" : h < 18 ? "evening" : "night";
+  $("hello").textContent = `Good ${sapaan}, ${OWNER}`;
+  $("presets").innerHTML = PRESETS.map(t => `<button data-temp="${t}">${t}°C</button>`).join("");
+  $("fans").innerHTML = FANS.map(([f, l]) => `<button data-fan="${f}">${l}</button>`).join("");
+  render();
+  connect();
+})();
+</script>
+</body>
+</html>
