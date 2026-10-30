@@ -206,8 +206,6 @@ footer{margin-top:auto;text-align:center;font-size:.74rem;color:var(--muted)}
 
 	/* ===== 1. KONFIGURASI ===== */
 	const SUPABASE_URL = "https://oviboanwsnrkipuihnq.supabase.co";
-
-	// PASTE PUBLISHABLE / ANON KEY SUPABASE KAMU DI DALAM TANDA PETIK DI BAWAH INI:
 	const SUPABASE_KEY = "sb_publishable_1bPpwEuUj425NsD8ibzs-w_vsTDAqYw";
 
 	const TABLE = "smart_home", ROW_ID = 1;
@@ -287,7 +285,7 @@ footer{margin-top:auto;text-align:center;font-size:.74rem;color:var(--muted)}
     state.temp = toNum(state.temp, TEMP_MIN, TEMP_MAX, 19);
     state.fan = toNum(state.fan, 0, 3, 3);
     render();
-    quietUntil = Date.now() + 1500;
+    quietUntil = Date.now() + 2000;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(save, 300);
   }
@@ -299,7 +297,7 @@ footer{margin-top:auto;text-align:center;font-size:.74rem;color:var(--muted)}
       .update({ Power: state.power, Temp: state.temp, Fan: state.fan })
       .eq("id", ROW_ID)
       .select();
-    quietUntil = Date.now() + 800;
+    quietUntil = Date.now() + 1000;
     if (error) { setConn("offline"); return toast("Failed to send: " + error.message); }
     setConn("online");
     if (!data || !data.length) toast("Changes not saved. Check RLS policy and ensure a row exists with id = " + ROW_ID);
@@ -311,13 +309,24 @@ footer{margin-top:auto;text-align:center;font-size:.74rem;color:var(--muted)}
   $("presets").onclick = e => { const b = e.target.closest("button"); if (b) change({ temp: +b.dataset.temp }); };
   $("fans").onclick = e => { const b = e.target.closest("button"); if (b) change({ fan: +b.dataset.fan }); };
 
-  /* ===== 6. SUPABASE SYNC ===== */
+  /* ===== 6. SUPABASE HTTP POLLING SYNC (Bypasses WebSocket/Proxy Block) ===== */
   function applyRow(r) {
     if (!r) return;
     state.power = (r.Power === true || String(r.Power).toUpperCase() === "ON") ? "ON" : "OFF";
     state.temp = toNum(r.Temp, TEMP_MIN, TEMP_MAX, state.temp);
     state.fan = toNum(r.Fan, 0, 3, state.fan);
     render();
+  }
+
+  async function pollServer() {
+    if (!db || Date.now() <= quietUntil) return;
+    const { data, error } = await db.from(TABLE).select("*").eq("id", ROW_ID).single();
+    if (error) {
+      setConn("offline");
+    } else {
+      setConn("online");
+      applyRow(data);
+    }
   }
 
   async function connect() {
@@ -330,16 +339,18 @@ footer{margin-top:auto;text-align:center;font-size:.74rem;color:var(--muted)}
     try { db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); }
     catch (e) { console.error(e); setConn("offline"); return toast("Invalid Supabase configuration."); }
 
+    setConn("connecting");
     const { data, error } = await db.from(TABLE).select("*").eq("id", ROW_ID).single();
-    if (error) toast("Failed to read AC status: " + error.message); else applyRow(data);
+    if (error) {
+      setConn("offline");
+      toast("Failed to read AC status: " + error.message);
+    } else {
+      setConn("online");
+      applyRow(data);
+    }
 
-    db.channel("smart-home-live")
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: TABLE, filter: `id=eq.${ROW_ID}` },
-        p => { if (Date.now() > quietUntil) applyRow(p.new); })
-      .subscribe(s => {
-        if (s === "SUBSCRIBED") setConn("online");
-        else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(s)) setConn("offline");
-      });
+    // Polling HTTP REST API setiap 2.5 detik (bebas blokir proxy apartemen)
+    setInterval(pollServer, 2500);
   }
 
   /* ===== 7. INIT ===== */
