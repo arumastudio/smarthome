@@ -205,7 +205,7 @@ footer{margin-top:auto;text-align:center;font-size:.74rem;color:var(--muted)}
 	'use strict';
 
 	/* ===== 1. KONFIGURASI ===== */
-	const _URL = "https://oviboanwsnrkipuihnq..co";
+	const SUPABASE_URL = "https://oviboanwsnrkipuihnq.supabase.co";
 	const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92aWJvYW53c25xcmtpcHVpaG5xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4MzM5MDAsImV4cCI6MjEwODQwOTkwMH0.2_qTcxO-mJGByhkE34MzX3j-JsXWjZk-upQiPkqrDDY";
 
 	const TABLE = "smart_home", ROW_ID = 1;
@@ -309,7 +309,7 @@ footer{margin-top:auto;text-align:center;font-size:.74rem;color:var(--muted)}
   $("presets").onclick = e => { const b = e.target.closest("button"); if (b) change({ temp: +b.dataset.temp }); };
   $("fans").onclick = e => { const b = e.target.closest("button"); if (b) change({ fan: +b.dataset.fan }); };
 
-  /* ===== 6. SUPABASE HTTP POLLING SYNC (Bypasses WebSocket/Proxy Block) ===== */
+  /* ===== 6. SUPABASE HTTP POLLING SYNC ===== */
   function applyRow(r) {
     if (!r) return;
     state.power = (r.Power === true || String(r.Power).toUpperCase() === "ON") ? "ON" : "OFF";
@@ -330,7 +330,7 @@ footer{margin-top:auto;text-align:center;font-size:.74rem;color:var(--muted)}
   }
 
   async function connect() {
-    const configured = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(SUPABASE_URL) && SUPABASE_KEY && !/PASTE_PUBLISHABLE_KEY/.test(SUPABASE_KEY);
+    const configured = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(SUPABASE_URL) && SUPABASE_KEY;
     if (!configured || !window.supabase) {
       setConn("demo");
       toast(window.supabase ? "Demo mode: fill in SUPABASE_KEY to connect." : "Failed to load Supabase library.");
@@ -349,7 +349,7 @@ footer{margin-top:auto;text-align:center;font-size:.74rem;color:var(--muted)}
       applyRow(data);
     }
 
-    // Polling HTTP REST API setiap 2.5 detik (bebas blokir proxy apartemen)
+    // Polling HTTP REST API setiap 2.5 detik
     setInterval(pollServer, 2500);
   }
 
